@@ -16,6 +16,11 @@ namespace NativeClipboard {
   REACT_MODULE(ClipboardModule, L"RNCClipboard");
   struct ClipboardModule
   {
+    REACT_INIT(Initialize);
+    void Initialize(const winrt::Microsoft::ReactNative::ReactContext& reactContext) noexcept
+    {
+      _context = reactContext;
+    }
 
     REACT_METHOD(GetString, L"getString");
     void GetString(React::ReactPromise<std::string>&& result) noexcept;
@@ -30,6 +35,7 @@ namespace NativeClipboard {
     void RemoveListeners(int count) noexcept;
 
   private:
+    ReactContext _context;
     int _listenerCount = 0;
   };
 }
