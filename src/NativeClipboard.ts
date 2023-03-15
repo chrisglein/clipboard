@@ -38,21 +38,31 @@ const addListener = (callback: () => void): EmitterSubscription => {
     NativeModules.RNCClipboard.setListener();
   }
 
-  let res = eventEmitter.addListener(EVENT_NAME, callback);
+  let subscription = eventEmitter.addListener(EVENT_NAME, callback);
 
-  // Path the remove call to also remove the native listener
-  // if we no longer have listeners
-  // @ts-ignore
-  res._remove = res.remove;
-  res.remove = function () {
-    // @ts-ignore
-    this._remove();
-    if (listenerCount(EVENT_NAME) === 0) {
-      NativeModules.RNCClipboard.removeListener();
+  // React Native 0.65+ altered EventEmitter:
+  // - removeSubscription is gone
+  // - addListener returns an unsubscriber instead of a more complex object with eventType etc
+
+  // make sure eventType for backwards compatibility just in case
+  subscription.eventType = EVENT_NAME;
+
+  // New style is to return a remove function on the object, just in csae people call that,
+  // we will modify it to do our native unsubscription then call the original
+  let originalRemove = subscription.remove;
+  let newRemove = () => {
+    NativeModules.RNCClipboard.eventsRemoveListener(EVENT_NAME, false);
+    if (eventEmitter.removeSubscription != null) {
+      // This is for RN <= 0.64 - 65 and greater no longer have removeSubscription
+      eventEmitter.removeSubscription(subscription);
+    } else if (originalRemove != null) {
+      // This is for RN >= 0.65
+      originalRemove();
     }
   };
 
-  return res;
+  subscription.remove = newRemove;
+  return subscription;
 };
 
 const removeAllListeners = () => {
